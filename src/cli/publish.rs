@@ -40,6 +40,8 @@ struct StubData {
     note: String,
     attempt_id: Option<i64>,
     attempt_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    permalink: Option<String>,
 }
 
 pub fn run(
@@ -100,6 +102,7 @@ pub fn run(
                     note: format!("Publish request completed ({result_path})."),
                     attempt_id: Some(attempt_id),
                     attempt_uuid: Some(attempt_uuid),
+                    permalink: None,
                 },
             );
             Ok(())
@@ -148,15 +151,22 @@ pub fn run(
                 Ok(_) => {}
                 Err(err) => return Err(err),
             }
+            // Best-effort: fetch permalink for the newly published reply
+            let permalink = fetch_reply_permalink(app, store);
+            let human_text = match &permalink {
+                Some(url) => format!("Reply published. {}", url),
+                None => "Reply published.".to_string(),
+            };
             print_success(
                 output_mode,
                 "publish reply",
-                "Reply published.",
+                human_text,
                 StubData {
                     implemented: true,
                     note: "Reply publish request completed.".to_string(),
                     attempt_id: Some(attempt_id),
                     attempt_uuid: Some(attempt_uuid),
+                    permalink,
                 },
             );
             Ok(())
@@ -501,6 +511,25 @@ fn ensure_attachment_supported(
         ));
     }
     Ok(())
+}
+
+fn fetch_reply_permalink(app: &AppConfig, store: &Store) -> Option<String> {
+    let token = store.latest_token().ok()??;
+    let client = ThreadsClient::from_config(app).ok()?;
+    // Get the most recently published attempt to find the threads_post_id
+    let attempts = store.list_attempts(1).ok()?;
+    let latest = attempts.first()?;
+    let post_id = latest.threads_post_id.as_ref()?;
+    let permalink = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async {
+            client
+                .fetch_post_details(&token.access_token, post_id)
+                .await
+                .ok()
+                .and_then(|details| details.permalink)
+        })
+    });
+    permalink
 }
 
 fn persist_source_link_reply_post(

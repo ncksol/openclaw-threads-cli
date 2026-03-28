@@ -1,11 +1,14 @@
 pub mod account;
+pub mod activity;
 pub mod attempts;
 pub mod auth;
 pub mod config;
 pub mod doctor;
 pub mod log;
+pub mod me;
 pub mod post;
 pub mod publish;
+pub mod search;
 pub mod validation;
 
 use clap::{Args, Parser, Subcommand};
@@ -33,6 +36,9 @@ pub enum Command {
     Attempts(AttemptsCommand),
     Config(ConfigCommand),
     Doctor(DoctorCommand),
+    Search(SearchCommand),
+    Me(MeCommand),
+    Activity(ActivityCommand),
 }
 
 #[derive(Debug, Args)]
@@ -81,4 +87,22 @@ pub struct ConfigCommand {
 pub struct DoctorCommand {
     #[command(subcommand)]
     pub command: doctor::DoctorSubcommand,
+}
+
+#[derive(Debug, Args)]
+pub struct SearchCommand {
+    #[command(subcommand)]
+    pub command: search::SearchSubcommand,
+}
+
+#[derive(Debug, Args)]
+pub struct MeCommand {
+    #[command(subcommand)]
+    pub command: me::MeSubcommand,
+}
+
+#[derive(Debug, Args)]
+pub struct ActivityCommand {
+    #[command(subcommand)]
+    pub command: activity::ActivitySubcommand,
 }

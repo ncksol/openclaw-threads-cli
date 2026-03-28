@@ -42,6 +42,9 @@ async fn main() -> Result<()> {
         Command::Post(cmd) => cli::post::run(cmd, &app, &store, output_mode).await,
         Command::Log(cmd) => cli::log::run(cmd, &store, output_mode),
         Command::Attempts(cmd) => cli::attempts::run(cmd, &store, output_mode),
+        Command::Search(cmd) => cli::search::run(cmd, &app, &store, output_mode).await,
+        Command::Me(cmd) => cli::me::run(cmd, &app, &store, output_mode).await,
+        Command::Activity(cmd) => cli::activity::run(cmd, &app, &store, output_mode).await,
     };
 
     if let Err(err) = result {
@@ -61,5 +64,8 @@ fn command_name(command: &Command) -> &'static str {
         Command::Post(_) => "post",
         Command::Log(_) => "log",
         Command::Attempts(_) => "attempts",
+        Command::Search(_) => "search",
+        Command::Me(_) => "me",
+        Command::Activity(_) => "activity",
     }
 }

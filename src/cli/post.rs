@@ -47,6 +47,7 @@ struct PostGetData {
     timestamp: Option<String>,
     username: Option<String>,
     shortcode: Option<String>,
+    accessible: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -101,7 +102,7 @@ pub async fn run(
                 ));
             }
             let access_token = require_access_token(store)?;
-            let details = retry_with_backoff(
+            let result = retry_with_backoff(
                 RetryPolicy {
                     max_retries: 3,
                     base_delay_ms: 100,
@@ -109,16 +110,39 @@ pub async fn run(
                 RetryOperation::SafeRead,
                 || async { client.fetch_post_details(&access_token, &args.id).await },
             )
-            .await?;
-            let data = PostGetData {
-                id: details.id,
-                text: details.text,
-                permalink: details.permalink,
-                timestamp: details.timestamp,
-                username: details.username,
-                shortcode: details.shortcode,
-            };
-            print_success(output_mode, "post get", format_post_get_human(&data), data);
+            .await;
+            match result {
+                Ok(details) => {
+                    let data = PostGetData {
+                        id: details.id,
+                        text: details.text,
+                        permalink: details.permalink,
+                        timestamp: details.timestamp,
+                        username: details.username,
+                        shortcode: details.shortcode,
+                        accessible: true,
+                    };
+                    print_success(output_mode, "post get", format_post_get_human(&data), data);
+                }
+                Err(ref err) if matches!(err.category, ErrorCategory::Auth | ErrorCategory::Api) => {
+                    let data = PostGetData {
+                        id: args.id.clone(),
+                        text: None,
+                        permalink: None,
+                        timestamp: None,
+                        username: None,
+                        shortcode: None,
+                        accessible: false,
+                    };
+                    print_success(
+                        output_mode,
+                        "post get",
+                        format!("Post {} is not accessible: {}", args.id, err.message),
+                        data,
+                    );
+                }
+                Err(err) => return Err(err),
+            }
             Ok(())
         }
         PostSubcommand::Insights(args) => {
