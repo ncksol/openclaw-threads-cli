@@ -369,11 +369,9 @@ async fn write_callback_response(
 }
 
 fn build_authorize_url(app: &AppConfig, state: &str) -> Result<Url, CliError> {
-    let mut url = Url::parse(&format!(
-        "{}/{}/oauth/authorize",
-        app.threads.base_url.trim_end_matches('/'),
-        app.threads.version.trim_start_matches('/'),
-    ))
+    // The user-facing consent screen lives on www.threads.net, not graph.threads.net.
+    // graph.threads.net is only for token exchange and API calls.
+    let mut url = Url::parse("https://www.threads.net/oauth/authorize")
     .map_err(|e| {
         CliError::new(
             ErrorCategory::Config,
