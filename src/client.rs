@@ -145,6 +145,75 @@ pub struct Cursors {
     pub after: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct KeywordSearchResponse {
+    #[serde(default)]
+    pub data: Vec<SearchResultItem>,
+    #[serde(default)]
+    pub paging: Option<Paging>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResultItem {
+    pub id: String,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub timestamp: Option<String>,
+    #[serde(default)]
+    pub permalink: Option<String>,
+    #[serde(default)]
+    pub like_count: Option<i64>,
+    #[serde(default)]
+    pub reply_count: Option<i64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserThreadsResponse {
+    #[serde(default)]
+    pub data: Vec<UserThreadItem>,
+    #[serde(default)]
+    pub paging: Option<Paging>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserThreadItem {
+    pub id: String,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub permalink: Option<String>,
+    #[serde(default)]
+    pub timestamp: Option<String>,
+    #[serde(default)]
+    pub username: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserRepliesResponse {
+    #[serde(default)]
+    pub data: Vec<UserReplyItem>,
+    #[serde(default)]
+    pub paging: Option<Paging>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserReplyItem {
+    pub id: String,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub permalink: Option<String>,
+    #[serde(default)]
+    pub timestamp: Option<String>,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub reply_to_id: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct ApiErrorEnvelope {
     error: ApiErrorPayload,
@@ -337,6 +406,64 @@ impl ThreadsClient {
         self.execute_json(request, "post replies fetch").await
     }
 
+    pub async fn keyword_search(
+        &self,
+        access_token: &str,
+        query: &str,
+        search_type: &str,
+    ) -> Result<KeywordSearchResponse, CliError> {
+        let path = self.versioned_path("/keyword_search");
+        let request = self.http.get(path).query(&[
+            ("q", query),
+            ("search_type", search_type),
+            ("fields", "id,username,text,timestamp,permalink,like_count,reply_count"),
+            ("access_token", access_token),
+        ]);
+        self.execute_json(request, "keyword search").await
+    }
+
+    pub async fn fetch_own_threads(
+        &self,
+        access_token: &str,
+        limit: Option<u32>,
+        after: Option<&str>,
+    ) -> Result<UserThreadsResponse, CliError> {
+        let path = self.versioned_path("/me/threads");
+        let mut query = vec![
+            ("fields".to_string(), "id,text,permalink,timestamp,username".to_string()),
+            ("access_token".to_string(), access_token.to_string()),
+        ];
+        if let Some(limit) = limit {
+            query.push(("limit".to_string(), limit.to_string()));
+        }
+        if let Some(after) = after {
+            query.push(("after".to_string(), after.to_string()));
+        }
+        let request = self.http.get(path).query(&query);
+        self.execute_json(request, "own threads fetch").await
+    }
+
+    pub async fn fetch_own_replies(
+        &self,
+        access_token: &str,
+        limit: Option<u32>,
+        after: Option<&str>,
+    ) -> Result<UserRepliesResponse, CliError> {
+        let path = self.versioned_path("/me/replies");
+        let mut query = vec![
+            ("fields".to_string(), "id,text,permalink,timestamp,username,reply_to_id".to_string()),
+            ("access_token".to_string(), access_token.to_string()),
+        ];
+        if let Some(limit) = limit {
+            query.push(("limit".to_string(), limit.to_string()));
+        }
+        if let Some(after) = after {
+            query.push(("after".to_string(), after.to_string()));
+        }
+        let request = self.http.get(path).query(&query);
+        self.execute_json(request, "own replies fetch").await
+    }
+
     fn versioned_path(&self, resource: &str) -> String {
         format!(
             "{}/{}/{}",
@@ -409,5 +536,34 @@ mod tests {
         assert_eq!(value["reply_to_id"], "123");
         assert_eq!(value["topic_tag"], "rust");
         assert_eq!(value["link_attachment"], "https://example.com");
+    }
+
+    #[test]
+    fn deserializes_keyword_search_response() {
+        let json = r#"{"data":[{"id":"123","username":"alice","text":"hello AI","timestamp":"2025-01-01T00:00:00Z","permalink":"https://threads.net/@alice/post/123","like_count":5,"reply_count":2}]}"#;
+        let response: KeywordSearchResponse = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].id, "123");
+        assert_eq!(response.data[0].username.as_deref(), Some("alice"));
+        assert_eq!(response.data[0].like_count, Some(5));
+        assert_eq!(response.data[0].reply_count, Some(2));
+    }
+
+    #[test]
+    fn deserializes_user_threads_response() {
+        let json = r#"{"data":[{"id":"456","text":"my post","permalink":"https://threads.net/@me/post/456","timestamp":"2025-01-01T00:00:00Z","username":"me"}]}"#;
+        let response: UserThreadsResponse = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].id, "456");
+        assert_eq!(response.data[0].text.as_deref(), Some("my post"));
+    }
+
+    #[test]
+    fn deserializes_user_replies_response_with_reply_to_id() {
+        let json = r#"{"data":[{"id":"789","text":"my reply","permalink":"https://threads.net/@me/post/789","timestamp":"2025-01-01T00:00:00Z","username":"me","reply_to_id":"456"}]}"#;
+        let response: UserRepliesResponse = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].id, "789");
+        assert_eq!(response.data[0].reply_to_id.as_deref(), Some("456"));
     }
 }

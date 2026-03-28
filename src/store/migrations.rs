@@ -97,6 +97,44 @@ pub fn run(conn: &mut Connection) -> Result<(), CliError> {
             last_fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             raw_json TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS search_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            query TEXT NOT NULL,
+            search_type TEXT NOT NULL,
+            threads_post_id TEXT NOT NULL,
+            username TEXT,
+            text TEXT,
+            permalink TEXT,
+            timestamp TEXT,
+            like_count INTEGER,
+            reply_count INTEGER,
+            raw_json TEXT NOT NULL,
+            fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS own_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            threads_post_id TEXT NOT NULL UNIQUE,
+            text TEXT,
+            permalink TEXT,
+            timestamp TEXT,
+            username TEXT,
+            raw_json TEXT NOT NULL,
+            fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS own_replies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            threads_post_id TEXT NOT NULL UNIQUE,
+            reply_to_id TEXT,
+            text TEXT,
+            permalink TEXT,
+            timestamp TEXT,
+            username TEXT,
+            raw_json TEXT NOT NULL,
+            fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         "#,
     )
     .map_err(map_db_error)?;

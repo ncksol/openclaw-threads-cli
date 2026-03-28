@@ -110,6 +110,39 @@ pub struct ReplyFetchStateRow {
 }
 
 #[allow(dead_code)]
+pub struct SearchResultRow {
+    pub threads_post_id: String,
+    pub username: Option<String>,
+    pub text: Option<String>,
+    pub permalink: Option<String>,
+    pub timestamp: Option<String>,
+    pub like_count: Option<i64>,
+    pub reply_count: Option<i64>,
+    pub fetched_at: String,
+}
+
+#[allow(dead_code)]
+pub struct OwnThreadRow {
+    pub threads_post_id: String,
+    pub text: Option<String>,
+    pub permalink: Option<String>,
+    pub timestamp: Option<String>,
+    pub username: Option<String>,
+    pub fetched_at: String,
+}
+
+#[allow(dead_code)]
+pub struct OwnReplyRow {
+    pub threads_post_id: String,
+    pub reply_to_id: Option<String>,
+    pub text: Option<String>,
+    pub permalink: Option<String>,
+    pub timestamp: Option<String>,
+    pub username: Option<String>,
+    pub fetched_at: String,
+}
+
+#[allow(dead_code)]
 pub struct RetryPolicy {
     pub max_retries: u32,
     pub base_delay_ms: u64,
@@ -749,6 +782,186 @@ impl Store {
         )
         .map_err(map_db_error)?;
         Ok(conn.last_insert_rowid())
+    }
+
+    #[allow(dead_code)]
+    pub fn insert_search_results(
+        &self,
+        query: &str,
+        search_type: &str,
+        results: &[(String, Option<String>, Option<String>, Option<String>, Option<String>, Option<i64>, Option<i64>, String)],
+    ) -> Result<(), CliError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "DELETE FROM search_results WHERE query = ?1 AND search_type = ?2",
+            (query, search_type),
+        )
+        .map_err(map_db_error)?;
+        for (post_id, username, text, permalink, timestamp, like_count, reply_count, raw_json) in results {
+            conn.execute(
+                "INSERT INTO search_results
+                 (query, search_type, threads_post_id, username, text, permalink, timestamp, like_count, reply_count, raw_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                (query, search_type, post_id, username, text, permalink, timestamp, like_count, reply_count, raw_json),
+            )
+            .map_err(map_db_error)?;
+        }
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn cached_search_results(
+        &self,
+        query: &str,
+        search_type: &str,
+        limit: usize,
+    ) -> Result<Vec<SearchResultRow>, CliError> {
+        let conn = self.connection()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT threads_post_id, username, text, permalink, timestamp, like_count, reply_count, fetched_at
+                 FROM search_results
+                 WHERE query = ?1 AND search_type = ?2
+                 ORDER BY id ASC
+                 LIMIT ?3",
+            )
+            .map_err(map_db_error)?;
+        let rows = stmt
+            .query_map((query, search_type, limit as i64), |row| {
+                Ok(SearchResultRow {
+                    threads_post_id: row.get(0)?,
+                    username: row.get(1)?,
+                    text: row.get(2)?,
+                    permalink: row.get(3)?,
+                    timestamp: row.get(4)?,
+                    like_count: row.get(5)?,
+                    reply_count: row.get(6)?,
+                    fetched_at: row.get(7)?,
+                })
+            })
+            .map_err(map_db_error)?;
+        let mut out = Vec::new();
+        for item in rows {
+            out.push(item.map_err(map_db_error)?);
+        }
+        Ok(out)
+    }
+
+    #[allow(dead_code)]
+    pub fn upsert_own_thread(
+        &self,
+        threads_post_id: &str,
+        text: Option<&str>,
+        permalink: Option<&str>,
+        timestamp: Option<&str>,
+        username: Option<&str>,
+        raw_json: &str,
+    ) -> Result<(), CliError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "INSERT INTO own_threads (threads_post_id, text, permalink, timestamp, username, raw_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(threads_post_id) DO UPDATE SET
+               text=excluded.text,
+               permalink=excluded.permalink,
+               timestamp=excluded.timestamp,
+               username=excluded.username,
+               raw_json=excluded.raw_json,
+               fetched_at=CURRENT_TIMESTAMP",
+            (threads_post_id, text, permalink, timestamp, username, raw_json),
+        )
+        .map_err(map_db_error)?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn list_own_threads(&self, limit: usize) -> Result<Vec<OwnThreadRow>, CliError> {
+        let conn = self.connection()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT threads_post_id, text, permalink, timestamp, username, fetched_at
+                 FROM own_threads
+                 ORDER BY id DESC
+                 LIMIT ?1",
+            )
+            .map_err(map_db_error)?;
+        let rows = stmt
+            .query_map([limit as i64], |row| {
+                Ok(OwnThreadRow {
+                    threads_post_id: row.get(0)?,
+                    text: row.get(1)?,
+                    permalink: row.get(2)?,
+                    timestamp: row.get(3)?,
+                    username: row.get(4)?,
+                    fetched_at: row.get(5)?,
+                })
+            })
+            .map_err(map_db_error)?;
+        let mut out = Vec::new();
+        for item in rows {
+            out.push(item.map_err(map_db_error)?);
+        }
+        Ok(out)
+    }
+
+    #[allow(dead_code)]
+    pub fn upsert_own_reply(
+        &self,
+        threads_post_id: &str,
+        reply_to_id: Option<&str>,
+        text: Option<&str>,
+        permalink: Option<&str>,
+        timestamp: Option<&str>,
+        username: Option<&str>,
+        raw_json: &str,
+    ) -> Result<(), CliError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "INSERT INTO own_replies (threads_post_id, reply_to_id, text, permalink, timestamp, username, raw_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(threads_post_id) DO UPDATE SET
+               reply_to_id=excluded.reply_to_id,
+               text=excluded.text,
+               permalink=excluded.permalink,
+               timestamp=excluded.timestamp,
+               username=excluded.username,
+               raw_json=excluded.raw_json,
+               fetched_at=CURRENT_TIMESTAMP",
+            (threads_post_id, reply_to_id, text, permalink, timestamp, username, raw_json),
+        )
+        .map_err(map_db_error)?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn list_own_replies(&self, limit: usize) -> Result<Vec<OwnReplyRow>, CliError> {
+        let conn = self.connection()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT threads_post_id, reply_to_id, text, permalink, timestamp, username, fetched_at
+                 FROM own_replies
+                 ORDER BY id DESC
+                 LIMIT ?1",
+            )
+            .map_err(map_db_error)?;
+        let rows = stmt
+            .query_map([limit as i64], |row| {
+                Ok(OwnReplyRow {
+                    threads_post_id: row.get(0)?,
+                    reply_to_id: row.get(1)?,
+                    text: row.get(2)?,
+                    permalink: row.get(3)?,
+                    timestamp: row.get(4)?,
+                    username: row.get(5)?,
+                    fetched_at: row.get(6)?,
+                })
+            })
+            .map_err(map_db_error)?;
+        let mut out = Vec::new();
+        for item in rows {
+            out.push(item.map_err(map_db_error)?);
+        }
+        Ok(out)
     }
 }
 

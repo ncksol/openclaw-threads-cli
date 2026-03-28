@@ -1,0 +1,11 @@
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/toml_write-8cb6b4bcffc76202.d: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/key.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/string.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/value.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/write.rs
+
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/libtoml_write-8cb6b4bcffc76202.rlib: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/key.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/string.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/value.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/write.rs
+
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/libtoml_write-8cb6b4bcffc76202.rmeta: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/key.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/string.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/value.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/write.rs
+
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/lib.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/key.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/string.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/value.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_write-0.1.2/src/write.rs:

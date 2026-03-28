@@ -1,0 +1,14 @@
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/serde-bf2bb66b058f9a38.d: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/build/serde-0b19142139323255/out/private.rs
+
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/libserde-bf2bb66b058f9a38.rlib: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/build/serde-0b19142139323255/out/private.rs
+
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/deps/libserde-bf2bb66b058f9a38.rmeta: /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/build/serde-0b19142139323255/out/private.rs
+
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/nick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/build/serde-0b19142139323255/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/nick/projects/openclaw-threads-cli/.worktrees/discovery-engagement/target/debug/build/serde-0b19142139323255/out
