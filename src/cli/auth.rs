@@ -385,7 +385,7 @@ fn build_authorize_url(app: &AppConfig, state: &str) -> Result<Url, CliError> {
         .append_pair("client_id", &app.threads.app_id)
         .append_pair("redirect_uri", &app.threads.redirect_uri)
         .append_pair("response_type", "code")
-        .append_pair("scope", "threads_basic")
+        .append_pair("scope", "threads_basic,threads_content_publish,threads_manage_replies,threads_manage_insights,threads_keyword_search")
         .append_pair("state", state);
     Ok(url)
 }
