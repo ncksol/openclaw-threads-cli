@@ -16,12 +16,6 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: threads-cli-aarch64-apple-darwin
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            name: threads-cli-x86_64-apple-darwin
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: threads-cli-x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.os }}
 
