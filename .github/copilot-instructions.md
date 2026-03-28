@@ -31,9 +31,15 @@
   - retry only `SafeRead` and `TokenRefresh`
   - do **not** retry `UnsafePublish`
   - retryable failures are `NETWORK_ERROR`, `RATE_LIMIT_ERROR`, or API errors containing `HTTP 5`.
-- Read commands (`post insights`, `post replies`) are cache-aware:
-  - default path reads local snapshots/replies when available
+- Read commands (`post insights`, `post replies`, `search posts`, `me threads`, `me replies`, `activity replies`) are cache-aware:
+  - default path reads local snapshots/cached results when available
   - `--refresh` fetches live data and updates snapshots/cursor state.
+- Discovery commands:
+  - `search posts` uses `GET /keyword_search` (rate-limited: 500 queries per 7-day window). Results are cached by `(query, search_type)`.
+  - `me threads` / `me replies` use `GET /me/threads` and `GET /me/replies`. Own replies include `reply_to_id` for tracing back to parent posts.
+  - `activity replies` composes own threads + per-post replies, filtering out the user's own replies. Partial failures (one post's replies failing) do not abort the whole check.
+  - `post get` handles non-owned posts gracefully — returns `accessible: false` instead of crashing on 403/API errors.
+  - `publish reply` fetches the permalink after publishing (best-effort; failure still reports success with `permalink: null`).
 - Config and input validation is strict and should be preserved:
   - OAuth listen host must stay localhost-only
   - `defaults.link_mode` must stay `reply` or `attachment`
