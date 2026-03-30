@@ -267,7 +267,7 @@ pub fn map_api_error(status: StatusCode, response_body: &str, operation: &str) -
 impl ThreadsClient {
     pub fn from_config(config: &AppConfig) -> Result<Self, CliError> {
         let http = Client::builder()
-            .user_agent("threads-cli/0.1.0")
+            .user_agent(concat!("threads-cli/", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| CliError::new(ErrorCategory::Network, format!("http client init error: {}", e)))?;
