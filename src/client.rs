@@ -345,7 +345,7 @@ impl ThreadsClient {
             .http
             .post(path)
             .query(&[("access_token", access_token)])
-            .json(payload);
+            .form(payload);
         self.execute_json(request, "create publish container").await
     }
 

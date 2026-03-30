@@ -571,9 +571,17 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
     use std::thread;
     use rusqlite::OptionalExtension;
     use serde_json::json;
+
+    #[derive(Debug, Clone)]
+    struct RecordedRequest {
+        path: String,
+        headers: String,
+        body: String,
+    }
 
     fn test_config(db_path: &str) -> AppConfig {
         AppConfig {
@@ -626,15 +634,28 @@ mod tests {
         create_responses: Vec<serde_json::Value>,
         publish_responses: Vec<serde_json::Value>,
     ) -> String {
+        spawn_recording_mock_server(expected_paths, create_responses, publish_responses).0
+    }
+
+    fn spawn_recording_mock_server(
+        expected_paths: usize,
+        create_responses: Vec<serde_json::Value>,
+        publish_responses: Vec<serde_json::Value>,
+    ) -> (String, Arc<Mutex<Vec<RecordedRequest>>>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind server");
         let addr = listener.local_addr().expect("local addr");
+        let recorded = Arc::new(Mutex::new(Vec::new()));
+        let recorded_clone = Arc::clone(&recorded);
+        
         thread::spawn(move || {
             let mut create_idx = 0usize;
             let mut publish_idx = 0usize;
             for _ in 0..expected_paths {
                 let (mut stream, _) = listener.accept().expect("accept");
                 let mut request = Vec::new();
-                let mut temp = [0u8; 1024];
+                let mut temp = [0u8; 4096];
+                
+                // Read until we have the full headers
                 loop {
                     let n = stream.read(&mut temp).expect("read");
                     if n == 0 {
@@ -645,10 +666,53 @@ mod tests {
                         break;
                     }
                 }
+                
+                // Find header boundary in byte-space
+                let header_end = request.windows(4)
+                    .position(|w| w == b"\r\n\r\n")
+                    .unwrap_or(request.len());
+                let headers_bytes = &request[..header_end];
+                let headers_str = String::from_utf8_lossy(headers_bytes);
+                
+                // Parse Content-Length to read body
+                let content_length: usize = headers_str
+                    .lines()
+                    .find(|line| line.to_lowercase().starts_with("content-length:"))
+                    .and_then(|line| line.split(':').nth(1))
+                    .and_then(|val| val.trim().parse().ok())
+                    .unwrap_or(0);
+                
+                // Read body if present
+                let body_start = header_end + 4;
+                let mut body_bytes = if body_start < request.len() {
+                    request[body_start..].to_vec()
+                } else {
+                    Vec::new()
+                };
+                
+                while body_bytes.len() < content_length {
+                    let n = stream.read(&mut temp).expect("read body");
+                    if n == 0 {
+                        break;
+                    }
+                    body_bytes.extend_from_slice(&temp[..n]);
+                }
+                
+                let body = String::from_utf8_lossy(&body_bytes[..content_length.min(body_bytes.len())]).to_string();
+                
                 let req_text = String::from_utf8_lossy(&request);
                 let first_line = req_text.lines().next().unwrap_or_default();
-                let path = first_line.split_whitespace().nth(1).unwrap_or("/");
-                let (status, body) = if path.contains("/threads_publish") {
+                let path = first_line.split_whitespace().nth(1).unwrap_or("/").to_string();
+                
+                // Record this request
+                recorded_clone.lock().expect("lock recorded requests").push(RecordedRequest {
+                    path: path.clone(),
+                    headers: headers_str.to_string(),
+                    body: body.clone(),
+                });
+                
+                // Return canned response
+                let (status, response_body) = if path.contains("/threads_publish") {
                     let body = publish_responses[publish_idx].to_string();
                     publish_idx += 1;
                     ("200 OK", body)
@@ -659,15 +723,17 @@ mod tests {
                 } else {
                     ("404 Not Found", json!({"error":{"message":"not found"}}).to_string())
                 };
+                
                 let response = format!(
-                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                    body.len()
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response_body}",
+                    response_body.len()
                 );
                 stream.write_all(response.as_bytes()).expect("write response");
                 stream.flush().expect("flush");
             }
         });
-        format!("http://{}", addr)
+        
+        (format!("http://{}", addr), recorded)
     }
 
     #[test]
@@ -929,5 +995,111 @@ mod tests {
             .as_deref()
             .expect("error message")
             .contains("publish container failed: network error"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn reply_publish_uses_form_encoded_container_request() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("threads.db");
+        let db_path_str = db_path.to_str().expect("db path");
+        let mut app = test_config(db_path_str);
+        write_secret_file(&app);
+        
+        let (base_url, recorded) = spawn_recording_mock_server(
+            2,
+            vec![json!({"id":"create_reply"})],
+            vec![json!({"id":"publish_reply"})],
+        );
+        app.threads.base_url = base_url;
+        
+        let store = Store::open(db_path_str).expect("open store");
+        store.run_migrations().expect("run migrations");
+        add_token(&store);
+        
+        let command = super::super::PublishCommand {
+            command: PublishSubcommand::Reply(ReplyArgs {
+                reply_to: "parent_1".to_string(),
+                text: "reply-body".to_string(),
+            }),
+        };
+        
+        run(command, &app, &store, OutputMode::Json).expect("publish should succeed");
+        
+        let requests = recorded.lock().expect("lock recorded requests");
+        let create_req = requests.iter().find(|r| r.path.contains("/threads?")).expect("create request");
+        
+        // Assert path contains access_token
+        assert!(create_req.path.contains("access_token=test-token"), "path should contain access_token=test-token");
+        
+        // Assert Content-Type is form-encoded
+        assert!(
+            create_req.headers.contains("Content-Type: application/x-www-form-urlencoded") ||
+            create_req.headers.contains("content-type: application/x-www-form-urlencoded"),
+            "headers should contain Content-Type: application/x-www-form-urlencoded, got: {}",
+            create_req.headers
+        );
+        
+        // Assert body contains correct fields
+        assert!(create_req.body.contains("text=reply-body"), "body should contain text=reply-body, got: {}", create_req.body);
+        assert!(create_req.body.contains("media_type=TEXT"), "body should contain media_type=TEXT, got: {}", create_req.body);
+        assert!(create_req.body.contains("reply_to_id=parent_1"), "body should contain reply_to_id=parent_1, got: {}", create_req.body);
+        
+        // Assert optional fields are omitted
+        assert!(!create_req.body.contains("topic_tag="), "body should not contain topic_tag=");
+        assert!(!create_req.body.contains("link_attachment="), "body should not contain link_attachment=");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn post_publish_uses_form_encoded_container_request_and_omits_optional_fields() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("threads.db");
+        let db_path_str = db_path.to_str().expect("db path");
+        let mut app = test_config(db_path_str);
+        write_secret_file(&app);
+        
+        let (base_url, recorded) = spawn_recording_mock_server(
+            2,
+            vec![json!({"id":"create_post"})],
+            vec![json!({"id":"publish_post"})],
+        );
+        app.threads.base_url = base_url;
+        
+        let store = Store::open(db_path_str).expect("open store");
+        store.run_migrations().expect("run migrations");
+        add_token(&store);
+        
+        let command = super::super::PublishCommand {
+            command: PublishSubcommand::Post(PostArgs {
+                text: "post-body".to_string(),
+                tag: None,
+                link: None,
+                link_mode: "reply".to_string(),
+            }),
+        };
+        
+        run(command, &app, &store, OutputMode::Json).expect("publish should succeed");
+        
+        let requests = recorded.lock().expect("lock recorded requests");
+        let create_req = requests.iter().find(|r| r.path.contains("/threads?")).expect("create request");
+        
+        // Assert path contains access_token
+        assert!(create_req.path.contains("access_token=test-token"), "path should contain access_token=test-token");
+        
+        // Assert Content-Type is form-encoded
+        assert!(
+            create_req.headers.contains("Content-Type: application/x-www-form-urlencoded") ||
+            create_req.headers.contains("content-type: application/x-www-form-urlencoded"),
+            "headers should contain Content-Type: application/x-www-form-urlencoded, got: {}",
+            create_req.headers
+        );
+        
+        // Assert body contains correct fields
+        assert!(create_req.body.contains("text=post-body"), "body should contain text=post-body, got: {}", create_req.body);
+        assert!(create_req.body.contains("media_type=TEXT"), "body should contain media_type=TEXT, got: {}", create_req.body);
+        
+        // Assert optional fields are omitted
+        assert!(!create_req.body.contains("reply_to_id="), "body should not contain reply_to_id=");
+        assert!(!create_req.body.contains("topic_tag="), "body should not contain topic_tag=");
+        assert!(!create_req.body.contains("link_attachment="), "body should not contain link_attachment=");
     }
 }
